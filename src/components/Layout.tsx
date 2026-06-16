@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/appStore';
-import { Bell, LayoutDashboard, Users, Calendar, MapPin, Home, Settings, User } from 'lucide-react';
+import { Bell, LayoutDashboard, Users, Calendar, MapPin, Home, Settings, User, Sun, Sparkles } from 'lucide-react';
 import { StatusBadge } from './ui';
 
 export function Layout() {
@@ -21,10 +21,12 @@ export function Layout() {
       { path: '/admin/approvals', label: '课程审核', icon: Users },
       { path: '/admin/venues', label: '场馆管理', icon: MapPin },
       { path: '/admin/scheduling', label: '排课中心', icon: Calendar },
+      { path: '/admin/summer-camp', label: '暑期班管理', icon: Sun },
       { path: '/admin/blacklist', label: '黑名单', icon: Settings },
     ],
     resident: [
       { path: '/resident/dashboard', label: '首页', icon: Home },
+      { path: '/resident/summer-courses', label: '暑期班', icon: Sparkles },
       { path: '/resident/courses', label: '课程列表', icon: Calendar },
       { path: '/resident/my', label: '我的报名', icon: Users },
       { path: '/resident/checkin', label: '签到中心', icon: Bell },

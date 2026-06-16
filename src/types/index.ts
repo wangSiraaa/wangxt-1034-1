@@ -50,6 +50,13 @@ export interface SessionSchedule {
   endTime: string;
   venueId?: string;
   locked?: boolean;
+  originalDate?: string;
+  originalStartTime?: string;
+  originalEndTime?: string;
+  rescheduled?: boolean;
+  rescheduleReason?: string;
+  cancelled?: boolean;
+  cancelReason?: string;
 }
 
 export interface Course {
@@ -68,9 +75,65 @@ export interface Course {
   rejectionReason?: string;
   createdAt: string;
   coverImage?: string;
+  isSummerCamp?: boolean;
+  isRollingAdmission?: boolean;
+  equipmentLimitSlots?: number;
+  totalEquipmentStock?: number;
+}
+
+export type PackageType = 'single' | 'package_4' | 'package_8' | 'family';
+
+export interface CoursePackage {
+  id: string;
+  courseId: string;
+  name: string;
+  type: PackageType;
+  sessionCount: number;
+  price: number;
+  isFamilyPackage: boolean;
+  maxFamilyMembers?: number;
+  validDays?: number;
+  description?: string;
+}
+
+export interface RegistrationPackage {
+  id: string;
+  registrationId: string;
+  packageId: string;
+  courseId: string;
+  residentId: string;
+  totalSessions: number;
+  usedSessions: number;
+  remainingSessions: number;
+  familyMemberIds: string[];
+  purchasedAt: string;
+  expiresAt?: string;
+}
+
+export type CohortStatus = 'upcoming' | 'enrolling' | 'ongoing' | 'completed' | 'full';
+
+export interface CourseCohort {
+  id: string;
+  courseId: string;
+  name: string;
+  cohortNumber: number;
+  startDate: string;
+  endDate: string;
+  weekCount: number;
+  maxParticipants: number;
+  equipmentLimitSlots?: number;
+  enrolledCount: number;
+  waitlistCount: number;
+  status: CohortStatus;
+  weekDay: number;
+  startTime: string;
+  endTime: string;
+  venueId?: string;
 }
 
 export type RegistrationStatus = 'registered' | 'waitlisted' | 'cancelled' | 'promoted' | 'blacklisted';
+
+export type WaitlistBlockReason = 'age' | 'blacklist' | 'equipment' | 'manual_review' | 'none';
 
 export interface Registration {
   id: string;
@@ -82,6 +145,10 @@ export interface Registration {
   registeredAt: string;
   promotedAt?: string;
   cancelledAt?: string;
+  cohortId?: string;
+  packageId?: string;
+  waitlistBlockReason?: WaitlistBlockReason;
+  waitlistBlockDetail?: string;
 }
 
 export type CheckInStatus = 'checked_in' | 'late' | 'absent' | 'not_started';

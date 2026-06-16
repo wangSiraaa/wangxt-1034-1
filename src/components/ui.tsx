@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CourseStatus, RegistrationStatus, CheckInStatus } from '../types';
+import type { CourseStatus, RegistrationStatus, CheckInStatus, CohortStatus } from '../types';
 
 const statusColors: Record<string, string> = {
   pending_approval: 'bg-yellow-100 text-yellow-800',
@@ -17,6 +17,9 @@ const statusColors: Record<string, string> = {
   late: 'bg-orange-100 text-orange-800',
   absent: 'bg-red-100 text-red-800',
   not_started: 'bg-gray-100 text-gray-600',
+  upcoming: 'bg-blue-100 text-blue-800',
+  enrolling: 'bg-green-100 text-green-800',
+  full: 'bg-orange-100 text-orange-800',
 };
 
 const statusLabels: Record<string, string> = {
@@ -35,9 +38,12 @@ const statusLabels: Record<string, string> = {
   late: '迟到',
   absent: '缺勤',
   not_started: '未开始',
+  upcoming: '即将开始',
+  enrolling: '报名中',
+  full: '已满员',
 };
 
-export function StatusBadge({ status }: { status: CourseStatus | RegistrationStatus | CheckInStatus }) {
+export function StatusBadge({ status }: { status: CourseStatus | RegistrationStatus | CheckInStatus | CohortStatus }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
       {statusLabels[status] || status}

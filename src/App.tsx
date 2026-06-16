@@ -8,8 +8,11 @@ import { Approvals } from './pages/admin/Approvals';
 import { Venues } from './pages/admin/Venues';
 import { Scheduling } from './pages/admin/Scheduling';
 import { BlacklistPage } from './pages/admin/Blacklist';
+import { AdminSummerCamp } from './pages/admin/SummerCamp';
 import { ResidentDashboard } from './pages/resident/Dashboard';
 import { ResidentCourses } from './pages/resident/Courses';
+import { SummerCourses } from './pages/resident/SummerCourses';
+import { SummerCourseDetail } from './pages/resident/SummerCourseDetail';
 import { MyRegistrations } from './pages/resident/MyRegistrations';
 import { CheckInCenter } from './pages/resident/CheckInCenter';
 import { NotificationsPage } from './pages/Notifications';
@@ -31,15 +34,18 @@ export default function App() {
           <Route path="venues" element={<Venues />} />
           <Route path="scheduling" element={<Scheduling />} />
           <Route path="blacklist" element={<BlacklistPage />} />
+          <Route path="summer-camp" element={<AdminSummerCamp />} />
         </Route>
         <Route path="resident">
           <Route path="dashboard" element={<ResidentDashboard />} />
           <Route path="courses" element={<ResidentCourses />} />
+          <Route path="summer-courses" element={<SummerCourses />} />
           <Route path="my" element={<MyRegistrations />} />
           <Route path="checkin" element={<CheckInCenter />} />
           <Route path="notifications" element={<NotificationsPage />} />
         </Route>
         <Route path="course/:id" element={<CourseDetail />} />
+        <Route path="summer-course/:courseId" element={<SummerCourseDetail />} />
         <Route path="*" element={<Navigate to="/resident/dashboard" replace />} />
       </Route>
     </Routes>
