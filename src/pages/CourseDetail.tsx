@@ -39,6 +39,15 @@ export function CourseDetail() {
   const myFm = familyMembers[currentUserId] || [];
   const blacklisted = isBlacklisted(currentUserId);
 
+  const hasUnassignedVenue = course.sessions.some(s => !s.venueId);
+  const canRegister = (course.status === 'scheduled' || course.status === 'ongoing') && !hasUnassignedVenue;
+  let waitReason = '';
+  if (course.status === 'approved') {
+    waitReason = '课程审核通过，管理员正在排定教室，请稍后再来';
+  } else if (hasUnassignedVenue) {
+    waitReason = '部分课次场馆尚未分配，请等待管理员排课';
+  }
+
   const myRegs = registrations.filter(
     r => r.courseId === course.id && r.residentId === currentUserId && r.status !== 'cancelled'
   );

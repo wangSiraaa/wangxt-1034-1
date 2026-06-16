@@ -37,6 +37,7 @@ interface AppState {
   rescheduleSession: (courseId: string, sessionId: string, date: string, startTime: string, endTime: string) => ChangeImpact;
   lockCourse: (courseId: string) => void;
 
+  canRegisterCourse: (courseId: string) => { canRegister: boolean; reason: string };
   registerCourse: (courseId: string, residentId: string, familyMemberId?: string) =>
     { success: boolean; message: string; status?: RegistrationStatus; waitlistPosition?: number };
   cancelRegistration: (registrationId: string) => void;
@@ -245,14 +246,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
+  canRegisterCourse: (courseId) => {
+    const course = get().courses.find(c => c.id === courseId);
+    if (!course) return { canRegister: false, reason: '课程不存在' };
+    if (course.status === 'cancelled') return { canRegister: false, reason: '课程已取消' };
+    if (course.status === 'completed') return { canRegister: false, reason: '课程已结束' };
+    if (course.status === 'pending_approval') return { canRegister: false, reason: '课程正在审核中，暂不可报名' };
+    if (course.status === 'rejected') return { canRegister: false, reason: '课程未通过审核，暂不可报名' };
+    if (course.status === 'approved') return { canRegister: false, reason: '课程审核通过，等待管理员分配场馆排课' };
+    const hasUnassignedVenue = course.sessions.some(s => !s.venueId);
+    if (hasUnassignedVenue) return { canRegister: false, reason: '课程场馆排课未完成，等待管理员分配' };
+    const firstSession = course.sessions[0];
+    if (firstSession && firstSession.locked) return { canRegister: false, reason: '课程已开课，无法报名' };
+    return { canRegister: true, reason: '' };
+  },
+
   registerCourse: (courseId, residentId, familyMemberId) => {
     const course = get().courses.find(c => c.id === courseId);
     if (!course) return { success: false, message: '课程不存在' };
 
-    if (course.status === 'cancelled') return { success: false, message: '课程已取消' };
-    if (course.status === 'completed') return { success: false, message: '课程已结束' };
-    if (course.status === 'pending_approval' || course.status === 'rejected') {
-      return { success: false, message: '课程尚未审核通过，暂不可报名' };
+    const check = get().canRegisterCourse(courseId);
+    if (!check.canRegister) {
+      return { success: false, message: check.reason };
     }
 
     if (get().isBlacklisted(residentId)) {

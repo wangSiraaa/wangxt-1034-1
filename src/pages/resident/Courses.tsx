@@ -62,6 +62,7 @@ export function ResidentCourses() {
         const firstVenue = c.sessions[0]?.venueId ? venues.find(v => v.id === c.sessions[0].venueId) : null;
         const isFull = regCount >= c.maxParticipants;
         const isLocked = c.sessions[0]?.locked;
+        const canRegister = (c.status === 'scheduled' || c.status === 'ongoing') && c.sessions.every(s => !!s.venueId);
 
         return (
           <Card key={c.id}>
