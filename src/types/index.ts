@@ -101,6 +101,7 @@ export interface RegistrationPackage {
   registrationId: string;
   packageId: string;
   courseId: string;
+  cohortId?: string;
   residentId: string;
   totalSessions: number;
   usedSessions: number;
@@ -129,6 +130,7 @@ export interface CourseCohort {
   startTime: string;
   endTime: string;
   venueId?: string;
+  sessions: SessionSchedule[];
 }
 
 export type RegistrationStatus = 'registered' | 'waitlisted' | 'cancelled' | 'promoted' | 'blacklisted';

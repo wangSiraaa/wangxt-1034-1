@@ -67,8 +67,8 @@ interface AppState {
   getRegistrationPackages: (residentId: string) => RegistrationPackage[];
   getRegistrationPackageById: (pkgId: string) => RegistrationPackage | undefined;
 
-  rescheduleSingleSession: (courseId: string, sessionId: string, newDate: string, newStartTime: string, newEndTime: string, reason: string) => ChangeImpact;
-  cancelSingleSession: (courseId: string, sessionId: string, reason: string) => { affected: number; refundSessions: number };
+  rescheduleSingleSession: (courseId: string, sessionId: string, newDate: string, newStartTime: string, newEndTime: string, reason: string, cohortId?: string) => ChangeImpact;
+  cancelSingleSession: (courseId: string, sessionId: string, reason: string, cohortId?: string) => { affected: number; refundSessions: number };
 
   registerWithCohort: (courseId: string, cohortId: string, residentId: string, familyMemberId?: string, packageId?: string) =>
     { success: boolean; message: string; status?: RegistrationStatus; waitlistPosition?: number };
@@ -614,45 +614,89 @@ export const useAppStore = create<AppState>((set, get) => ({
     return get().registrationPackages.find(p => p.id === pkgId);
   },
 
-  rescheduleSingleSession: (courseId, sessionId, newDate, newStartTime, newEndTime, reason) => {
-    const course = get().courses.find(c => c.id === courseId);
-    const session = course?.sessions.find(s => s.id === sessionId);
-    if (!course || !session) {
-      return { type: 'reschedule', affectedRegistrations: 0, affectedWaitlist: 0, details: '课次不存在' };
+  rescheduleSingleSession: (courseId, sessionId, newDate, newStartTime, newEndTime, reason, cohortId) => {
+    const state = get();
+    const course = state.courses.find(c => c.id === courseId);
+    const cohort = cohortId ? state.courseCohorts.find(c => c.id === cohortId && c.courseId === courseId) : undefined;
+
+    let oldDate = '';
+    let oldStart = '';
+    let sessionIndex = -1;
+
+    if (cohortId) {
+      const idx = cohort?.sessions.findIndex(s => s.id === sessionId) ?? -1;
+      if (!cohort || idx === -1) {
+        return { type: 'reschedule', affectedRegistrations: 0, affectedWaitlist: 0, details: '班期课次不存在' };
+      }
+      oldDate = cohort.sessions[idx].date;
+      oldStart = cohort.sessions[idx].startTime;
+      sessionIndex = idx;
+
+      set((s) => ({
+        courseCohorts: s.courseCohorts.map(ch =>
+          ch.id !== cohortId ? ch : {
+            ...ch,
+            sessions: ch.sessions.map(sess =>
+              sess.id === sessionId
+                ? {
+                    ...sess,
+                    originalDate: sess.originalDate || sess.date,
+                    originalStartTime: sess.originalStartTime || sess.startTime,
+                    originalEndTime: sess.originalEndTime || sess.endTime,
+                    date: newDate,
+                    startTime: newStartTime,
+                    endTime: newEndTime,
+                    rescheduled: true,
+                    rescheduleReason: reason,
+                  }
+                : sess
+            ),
+          }
+        ),
+      }));
+    } else {
+      const idx = course?.sessions.findIndex(s => s.id === sessionId) ?? -1;
+      if (!course || idx === -1) {
+        return { type: 'reschedule', affectedRegistrations: 0, affectedWaitlist: 0, details: '课次不存在' };
+      }
+      oldDate = course.sessions[idx].date;
+      oldStart = course.sessions[idx].startTime;
+      sessionIndex = idx;
+
+      set((s) => ({
+        courses: s.courses.map(c =>
+          c.id !== courseId ? c : {
+            ...c,
+            sessions: c.sessions.map(sess =>
+              sess.id === sessionId
+                ? {
+                    ...sess,
+                    originalDate: sess.originalDate || sess.date,
+                    originalStartTime: sess.originalStartTime || sess.startTime,
+                    originalEndTime: sess.originalEndTime || sess.endTime,
+                    date: newDate,
+                    startTime: newStartTime,
+                    endTime: newEndTime,
+                    rescheduled: true,
+                    rescheduleReason: reason,
+                  }
+                : sess
+            ),
+          }
+        ),
+      }));
     }
 
-    const oldDate = session.date;
-    const oldStart = session.startTime;
+    const regFilter = (r: Registration) =>
+      cohortId ? (r.courseId === courseId && r.cohortId === cohortId) : (r.courseId === courseId);
+    const regs = get().registrations.filter(regFilter);
+    const titlePrefix = cohort ? `「${cohort.name}」` : `「${course?.name}」`;
 
-    set((s) => ({
-      courses: s.courses.map(c =>
-        c.id !== courseId ? c : {
-          ...c,
-          sessions: c.sessions.map(sess =>
-            sess.id === sessionId
-              ? {
-                  ...sess,
-                  originalDate: sess.originalDate || sess.date,
-                  originalStartTime: sess.originalStartTime || sess.startTime,
-                  originalEndTime: sess.originalEndTime || sess.endTime,
-                  date: newDate,
-                  startTime: newStartTime,
-                  endTime: newEndTime,
-                  rescheduled: true,
-                  rescheduleReason: reason,
-                }
-              : sess
-          ),
-        }
-      ),
-    }));
-
-    const regs = get().registrations.filter(r => r.courseId === courseId);
     const impact: ChangeImpact = {
       type: oldDate === newDate ? 'time_change' : 'reschedule',
       affectedRegistrations: regs.filter(r => r.status === 'registered').length,
       affectedWaitlist: regs.filter(r => r.status === 'waitlisted').length,
-      details: `第${course.sessions.findIndex(s => s.id === sessionId) + 1}次课时间从 ${oldDate} ${oldStart} 调整为 ${newDate} ${newStartTime}，原因：${reason}`,
+      details: `第${sessionIndex + 1}次课时间从 ${oldDate} ${oldStart} 调整为 ${newDate} ${newStartTime}，原因：${reason}`,
     };
 
     if (course) {
@@ -661,7 +705,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           userId: r.residentId,
           type: 'course_rescheduled',
           title: '单次课时间调整通知',
-          content: `「${course.name}」的单次课时间有调整：${impact.details}，剩余课次保留。`,
+          content: `${titlePrefix}的单次课时间有调整：${impact.details}，**同一报名的剩余课次保留不变**，候补和通知记录也保留。`,
           relatedCourseId: course.id,
           relatedRegistrationId: r.id,
         });
@@ -671,26 +715,47 @@ export const useAppStore = create<AppState>((set, get) => ({
     return impact;
   },
 
-  cancelSingleSession: (courseId, sessionId, reason) => {
-    const course = get().courses.find(c => c.id === courseId);
+  cancelSingleSession: (courseId, sessionId, reason, cohortId) => {
+    const state = get();
+    const course = state.courses.find(c => c.id === courseId);
+    const cohort = cohortId ? state.courseCohorts.find(c => c.id === cohortId && c.courseId === courseId) : undefined;
     if (!course) return { affected: 0, refundSessions: 0 };
 
-    set((s) => ({
-      courses: s.courses.map(c =>
-        c.id !== courseId ? c : {
-          ...c,
-          sessions: c.sessions.map(sess =>
-            sess.id === sessionId ? { ...sess, cancelled: true, cancelReason: reason } : sess
-          ),
-        }
-      ),
-    }));
+    if (cohortId) {
+      if (!cohort) return { affected: 0, refundSessions: 0 };
+      set((s) => ({
+        courseCohorts: s.courseCohorts.map(ch =>
+          ch.id !== cohortId ? ch : {
+            ...ch,
+            sessions: ch.sessions.map(sess =>
+              sess.id === sessionId ? { ...sess, cancelled: true, cancelReason: reason } : sess
+            ),
+          }
+        ),
+      }));
+    } else {
+      set((s) => ({
+        courses: s.courses.map(c =>
+          c.id !== courseId ? c : {
+            ...c,
+            sessions: c.sessions.map(sess =>
+              sess.id === sessionId ? { ...sess, cancelled: true, cancelReason: reason } : sess
+            ),
+          }
+        ),
+      }));
+    }
 
-    const regs = get().registrations.filter(r => r.courseId === courseId && r.status === 'registered');
+    const regFilter = (r: Registration) =>
+      cohortId ? (r.courseId === courseId && r.cohortId === cohortId && r.status === 'registered')
+               : (r.courseId === courseId && r.status === 'registered');
+    const regs = get().registrations.filter(regFilter);
+    const titlePrefix = cohort ? `「${cohort.name}」` : `「${course.name}」`;
 
     set((s) => ({
       registrationPackages: s.registrationPackages.map(p => {
         if (p.courseId !== courseId) return p;
+        if (cohortId && p.cohortId !== cohortId) return p;
         return {
           ...p,
           totalSessions: p.totalSessions - 1,
@@ -704,7 +769,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         userId: r.residentId,
         type: 'course_cancelled',
         title: '单次课取消通知',
-        content: `「${course.name}」的某次课已取消（原因：${reason}），剩余课次保留，课次包已自动返还1次。`,
+        content: `${titlePrefix}的某次课已取消（原因：${reason}），**同一报名的剩余课次保留不变**，课次包已自动返还1次。`,
         relatedCourseId: course.id,
         relatedRegistrationId: r.id,
       });

@@ -1,7 +1,7 @@
 import type {
   User, FamilyMember, Venue, Course, Registration,
   CheckInRecord, BlacklistEntry, Notification,
-  CoursePackage, CourseCohort
+  CoursePackage, CourseCohort, SessionSchedule, CohortStatus
 } from '../types';
 
 export const mockUsers: User[] = [
@@ -79,6 +79,35 @@ const addDays = (d: Date, n: number) => {
   const nd = new Date(d);
   nd.setDate(nd.getDate() + n);
   return nd;
+};
+const addWeeks = (d: Date, n: number) => addDays(d, n * 7);
+
+const genSessionId = () => Math.random().toString(36).slice(2, 11);
+
+const buildCohortSessions = (
+  firstDate: Date,
+  weekCount: number,
+  weekDay: number,
+  startTime: string,
+  endTime: string,
+  venueId?: string
+): SessionSchedule[] => {
+  const sessions: SessionSchedule[] = [];
+  const start = new Date(firstDate);
+  const delta = (weekDay - start.getDay() + 7) % 7;
+  start.setDate(start.getDate() + delta);
+  for (let w = 0; w < weekCount; w++) {
+    const d = addDays(start, w * 7);
+    sessions.push({
+      id: genSessionId(),
+      date: fmt(d),
+      startTime,
+      endTime,
+      venueId,
+      locked: false,
+    });
+  }
+  return sessions;
 };
 
 export const mockCourses: Course[] = [
@@ -227,12 +256,6 @@ export const mockCourses: Course[] = [
   },
 ];
 
-const addWeeks = (d: Date, n: number) => {
-  const nd = new Date(d);
-  nd.setDate(nd.getDate() + n * 7);
-  return nd;
-};
-
 export const mockCoursePackages: CoursePackage[] = [
   {
     id: 'pkg_s1',
@@ -304,111 +327,135 @@ export const mockCoursePackages: CoursePackage[] = [
 ];
 
 export const mockCourseCohorts: CourseCohort[] = [
-  {
-    id: 'coh_s1_1',
-    courseId: 'summer_c1',
-    name: '游泳班第1期',
-    cohortNumber: 1,
-    startDate: fmt(addDays(today, 3)),
-    endDate: fmt(addWeeks(today, 8)),
-    weekCount: 8,
-    maxParticipants: 20,
-    equipmentLimitSlots: 8,
-    enrolledCount: 7,
-    waitlistCount: 2,
-    status: 'enrolling',
-    weekDay: 6,
-    startTime: '09:00',
-    endTime: '10:30',
-    venueId: 'v4',
-  },
-  {
-    id: 'coh_s1_2',
-    courseId: 'summer_c1',
-    name: '游泳班第2期',
-    cohortNumber: 2,
-    startDate: fmt(addWeeks(today, 1)),
-    endDate: fmt(addWeeks(today, 9)),
-    weekCount: 8,
-    maxParticipants: 20,
-    equipmentLimitSlots: 8,
-    enrolledCount: 5,
-    waitlistCount: 1,
-    status: 'enrolling',
-    weekDay: 0,
-    startTime: '14:00',
-    endTime: '15:30',
-    venueId: 'v4',
-  },
-  {
-    id: 'coh_s1_3',
-    courseId: 'summer_c1',
-    name: '游泳班第3期',
-    cohortNumber: 3,
-    startDate: fmt(addWeeks(today, 2)),
-    endDate: fmt(addWeeks(today, 10)),
-    weekCount: 8,
-    maxParticipants: 20,
-    equipmentLimitSlots: 8,
-    enrolledCount: 3,
-    waitlistCount: 0,
-    status: 'upcoming',
-    weekDay: 3,
-    startTime: '10:00',
-    endTime: '11:30',
-    venueId: 'v4',
-  },
-  {
-    id: 'coh_b1_1',
-    courseId: 'summer_c2',
-    name: '篮球营第1期',
-    cohortNumber: 1,
-    startDate: fmt(addDays(today, 5)),
-    endDate: fmt(addWeeks(today, 8)),
-    weekCount: 8,
-    maxParticipants: 30,
-    equipmentLimitSlots: 20,
-    enrolledCount: 18,
-    waitlistCount: 5,
-    status: 'enrolling',
-    weekDay: 1,
-    startTime: '16:00',
-    endTime: '18:00',
-  },
-  {
-    id: 'coh_b1_2',
-    courseId: 'summer_c2',
-    name: '篮球营第2期',
-    cohortNumber: 2,
-    startDate: fmt(addWeeks(today, 1)),
-    endDate: fmt(addWeeks(today, 9)),
-    weekCount: 8,
-    maxParticipants: 30,
-    equipmentLimitSlots: 20,
-    enrolledCount: 12,
-    waitlistCount: 3,
-    status: 'enrolling',
-    weekDay: 4,
-    startTime: '16:00',
-    endTime: '18:00',
-  },
-  {
-    id: 'coh_f1_1',
-    courseId: 'summer_c3',
-    name: '亲子绘画班',
-    cohortNumber: 1,
-    startDate: fmt(addDays(today, 7)),
-    endDate: fmt(addWeeks(today, 8)),
-    weekCount: 8,
-    maxParticipants: 16,
-    enrolledCount: 8,
-    waitlistCount: 2,
-    status: 'enrolling',
-    weekDay: 6,
-    startTime: '10:00',
-    endTime: '11:30',
-    venueId: 'v5',
-  },
+  (() => {
+    const start = addDays(today, 3);
+    return {
+      id: 'coh_s1_1',
+      courseId: 'summer_c1',
+      name: '游泳班第1期',
+      cohortNumber: 1,
+      startDate: fmt(start),
+      endDate: fmt(addWeeks(today, 8)),
+      weekCount: 8,
+      maxParticipants: 20,
+      equipmentLimitSlots: 8,
+      enrolledCount: 7,
+      waitlistCount: 2,
+      status: 'enrolling' as CohortStatus,
+      weekDay: 6,
+      startTime: '09:00',
+      endTime: '10:30',
+      venueId: 'v4',
+      sessions: buildCohortSessions(start, 8, 6, '09:00', '10:30', 'v4'),
+    };
+  })(),
+  (() => {
+    const start = addWeeks(today, 1);
+    return {
+      id: 'coh_s1_2',
+      courseId: 'summer_c1',
+      name: '游泳班第2期',
+      cohortNumber: 2,
+      startDate: fmt(start),
+      endDate: fmt(addWeeks(today, 9)),
+      weekCount: 8,
+      maxParticipants: 20,
+      equipmentLimitSlots: 8,
+      enrolledCount: 5,
+      waitlistCount: 1,
+      status: 'enrolling' as CohortStatus,
+      weekDay: 0,
+      startTime: '14:00',
+      endTime: '15:30',
+      venueId: 'v4',
+      sessions: buildCohortSessions(start, 8, 0, '14:00', '15:30', 'v4'),
+    };
+  })(),
+  (() => {
+    const start = addWeeks(today, 2);
+    return {
+      id: 'coh_s1_3',
+      courseId: 'summer_c1',
+      name: '游泳班第3期',
+      cohortNumber: 3,
+      startDate: fmt(start),
+      endDate: fmt(addWeeks(today, 10)),
+      weekCount: 8,
+      maxParticipants: 20,
+      equipmentLimitSlots: 8,
+      enrolledCount: 3,
+      waitlistCount: 0,
+      status: 'upcoming' as CohortStatus,
+      weekDay: 3,
+      startTime: '10:00',
+      endTime: '11:30',
+      venueId: 'v4',
+      sessions: buildCohortSessions(start, 8, 3, '10:00', '11:30', 'v4'),
+    };
+  })(),
+  (() => {
+    const start = addDays(today, 5);
+    return {
+      id: 'coh_b1_1',
+      courseId: 'summer_c2',
+      name: '篮球营第1期',
+      cohortNumber: 1,
+      startDate: fmt(start),
+      endDate: fmt(addWeeks(today, 8)),
+      weekCount: 8,
+      maxParticipants: 30,
+      equipmentLimitSlots: 20,
+      enrolledCount: 18,
+      waitlistCount: 5,
+      status: 'enrolling' as CohortStatus,
+      weekDay: 1,
+      startTime: '16:00',
+      endTime: '18:00',
+      sessions: buildCohortSessions(start, 8, 1, '16:00', '18:00'),
+    };
+  })(),
+  (() => {
+    const start = addWeeks(today, 1);
+    return {
+      id: 'coh_b1_2',
+      courseId: 'summer_c2',
+      name: '篮球营第2期',
+      cohortNumber: 2,
+      startDate: fmt(start),
+      endDate: fmt(addWeeks(today, 9)),
+      weekCount: 8,
+      maxParticipants: 30,
+      equipmentLimitSlots: 20,
+      enrolledCount: 12,
+      waitlistCount: 3,
+      status: 'enrolling' as CohortStatus,
+      weekDay: 4,
+      startTime: '16:00',
+      endTime: '18:00',
+      sessions: buildCohortSessions(start, 8, 4, '16:00', '18:00'),
+    };
+  })(),
+  (() => {
+    const start = addDays(today, 7);
+    return {
+      id: 'coh_f1_1',
+      courseId: 'summer_c3',
+      name: '亲子绘画班',
+      cohortNumber: 1,
+      startDate: fmt(start),
+      endDate: fmt(addWeeks(today, 8)),
+      weekCount: 8,
+      maxParticipants: 16,
+      enrolledCount: 8,
+      waitlistCount: 2,
+      status: 'enrolling' as CohortStatus,
+      weekDay: 6,
+      startTime: '10:00',
+      endTime: '11:30',
+      venueId: 'v5',
+      sessions: buildCohortSessions(start, 8, 6, '10:00', '11:30', 'v5'),
+    };
+  })(),
 ];
 
 export const mockRegistrations: Registration[] = [
